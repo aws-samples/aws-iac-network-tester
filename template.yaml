@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  IaC Network Tester Application
+
+Globals:
+  Function:
+    Timeout: 300
+
+Resources:
+  NetworkTestStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: statemachine/network-test.json
+      DefinitionSubstitutions:
+        RetrievePathToTestFunctionArn: !GetAtt RetrievePathToTestFunction.Arn
+        CheckNetworkTestStatusFunctionArn: !GetAtt CheckNetworkTestStatusFunction.Arn
+        TestDurationIteratorFunctionArn: !GetAtt TestDurationIteratorFunction.Arn
+        StartNetworkTestFunctionArn: !GetAtt StartNetworkTestFunction.Arn
+        DeleteTestResourcesFunctionArn: !GetAtt DeleteTestResourcesFunction.Arn
+      Tracing:
+        Enabled: True
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref RetrievePathToTestFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref CheckNetworkTestStatusFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref TestDurationIteratorFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref StartNetworkTestFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref DeleteTestResourcesFunction
+
+  RetrievePathToTestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: retrieve_path_to_test/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - CloudFormationDescribeStacksPolicy: {}
+        - Statement:
+            - Sid: CloudFormationDescribeStackResourcePolicy
+              Effect: Allow
+              Action:
+                - cloudformation:DescribeStackResource
+              Resource: "*"
+
+  StartNetworkTestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: start_network_test/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - CloudFormationDescribeStacksPolicy: {}
+        - Statement:
+            - Sid: StartNetworkInsightAnalysisPolicy
+              Effect: Allow
+              Action:
+                - "*"
+              Resource: "*"
+
+  CheckNetworkTestStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: check_network_test/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - Statement:
+            - Sid: DescribeNetworkInsightsAnalysesPolicy
+              Effect: Allow
+              Action:
+                - ec2:DescribeNetworkInsightsAnalyses
+              Resource: "*"
+
+  TestDurationIteratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: test_duration_iterator/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+
+  DeleteTestResourcesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: delete_test_resources/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+      Policies:
+        - Statement:
+            - Sid: DeleteNetworkAnalysisPolicy
+              Effect: Allow
+              Action:
+                - "*"
+              Resource: "*"
+Outputs:
+  IaCNetworkTesterStateMachineArn:
+    Value: !GetAtt NetworkTestStateMachine.Arn

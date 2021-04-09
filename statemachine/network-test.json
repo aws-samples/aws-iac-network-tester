@@ -1,0 +1,87 @@
+  {
+    "Comment": "A state machine to carry out network testing on CloudFormation template",
+    "StartAt": "InitializeTest",
+    "States": {
+      "InitializeTest": {
+        "Type": "Pass",
+        "Result": {
+          "index": 0
+        },
+        "ResultPath": "$.iterator",
+        "Next": "RetrievePathToTest"
+      },
+      "RetrievePathToTest": {
+        "Type": "Task",
+        "Resource": "${RetrievePathToTestFunctionArn}",
+        "ResultPath": "$.pathdetails",
+        "Next": "StartAllNetworkTestState"
+      },
+      "StartAllNetworkTestState": {
+        "Type": "Map",
+        "ItemsPath": "$.pathdetails",
+        "MaxConcurrency": 0,
+        "Iterator":{
+          "StartAt": "StartNetworkTest",
+          "States":{
+            "StartNetworkTest": {
+              "Type": "Task",
+              "Resource":"${StartNetworkTestFunctionArn}",
+              "End": true
+            }
+          }
+        },
+        "ResultPath": "$.pathdetails",
+        "Next": "WaitForTestToRun"
+      },
+      "WaitForTestToRun": {
+        "Type": "Wait",
+        "SecondsPath": "$.analysisDuration",
+        "Next": "CheckTestStatus"
+      },
+      "CheckTestStatus": {
+        "Type": "Task",
+        "Resource": "${CheckNetworkTestStatusFunctionArn}",
+        "ResultPath": "$.testresult",
+        "Next": "IsTestCompleted"
+      },
+      "IsTestCompleted": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.testresult.running.count",
+            "NumericGreaterThan": 0,
+            "Next": "IncrementTestTimer"
+          }
+        ],
+        "Default": "CleanUp"
+      },
+      "IncrementTestTimer": {
+        "Type": "Task",
+        "Resource": "${TestDurationIteratorFunctionArn}",
+        "ResultPath": "$.iterator",
+        "Next": "IsTestDurationReached"
+      },
+      "IsTestDurationReached": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.iterator.continue",
+            "BooleanEquals": true,
+            "Next": "WaitForTestToRun"
+          }
+        ],
+        "Default": "CleanUp"
+      },
+      "CleanUp":{
+        "Type": "Task",
+        "Resource": "${DeleteTestResourcesFunctionArn}",
+        "ResultPath": null,
+        "OutputPath": "$.testresult",
+        "Next": "Done"
+      },
+      "Done": {
+        "Type": "Pass",
+        "End": true
+      }
+    }
+  }

@@ -1,0 +1,238 @@
+---
+Description: An AWS VPC configuration with 1 subnet, 2 security groups and 3 instances. When testing ReachabilityAnalyzer, this provides both a path found and path not found scenario.
+AWSTemplateFormatVersion: 2010-09-09
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      execution: ami-0915e09cc7ceee3ab
+      ecs: ami-08087103f9850bddd
+
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 172.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+
+  # Subnets
+  WebServerSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 172.0.0.0/21
+      MapPublicIpOnLaunch: true
+
+  WebServerSubnetRoutTableAss:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref WebServerSubnet
+
+  # Subnets
+  AppServerSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 172.0.8.0/21
+      MapPublicIpOnLaunch: false
+
+  AppServerSubnetRoutTableAss:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref AppServerSubnet
+
+  # Subnets
+  DBServerSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 172.0.16.0/21
+      MapPublicIpOnLaunch: false
+
+  DBServerSubnetRoutTableAss:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref DBServerSubnet
+
+  # SGs
+  WebServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http(s) and egress traffic
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - CidrIp: 172.0.8.0/21
+          FromPort: 80
+          ToPort: 80
+          IpProtocol: tcp
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  AppServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow all ingress from WebServerSG and all egress to DBServerSG and to download update from the internet
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - CidrIp: 172.0.0.0/21
+          FromPort: 80
+          ToPort: 80
+          IpProtocol: tcp
+      SecurityGroupEgress:
+        - CidrIp: 172.0.16.0/21
+          FromPort: 3306
+          ToPort: 3306
+          IpProtocol: tcp
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  DBServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow all ingress from AppServer and egress to download update from the internet
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - CidrIp: 172.0.8.0/21
+          FromPort: 3306
+          ToPort: 3306
+          IpProtocol: tcp
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  # NAT Gateway
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - EIP
+          - AllocationId
+      SubnetId:
+        Ref: WebServerSubnet
+
+  # NAT Gateway EIP
+  EIP:
+    DependsOn: GatewayToInternet
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  # Internet Gateway Attachment
+  GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC
+      InternetGatewayId:
+        Ref: InternetGateway
+
+  # Route Tables
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+
+  # Routes
+  RouteToNATGateway:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NATGateway
+      RouteTableId:
+        Ref: PrivateRouteTable
+
+  RouteToInternetGateway:
+    DependsOn: GatewayToInternet
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+      RouteTableId:
+        Ref: PublicRouteTable
+
+  # Instances
+  WebServerInstance:
+    DependsOn: GatewayToInternet
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId:
+        Fn::FindInMap:
+          - RegionMap
+          - Ref: AWS::Region
+          - execution
+      InstanceType: "t3.nano"
+      SubnetId:
+        Ref: WebServerSubnet
+      SecurityGroupIds:
+        - Ref: WebServerSG
+
+  AppServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId:
+        Fn::FindInMap:
+          - RegionMap
+          - Ref: AWS::Region
+          - execution
+      InstanceType: "t3.nano"
+      SubnetId:
+        Ref: AppServerSubnet
+      SecurityGroupIds:
+        - Ref: AppServerSG
+
+  DBServerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId:
+        Fn::FindInMap:
+          - RegionMap
+          - Ref: AWS::Region
+          - execution
+      InstanceType: "t3.nano"
+      SubnetId:
+        Ref: DBServerSubnet
+      SecurityGroupIds:
+        - Ref: DBServerSG
+
+# Output VPC Reachability Analyzer Tests
+Outputs:
+  NetworkReachabilityTestPaths:
+    Value: !Sub |
+      [
+      {"Source":"${AppServerInstance}", "Destination":"${InternetGateway}","RouteTag":"AppToInternet"},
+      {"Source":"${WebServerInstance}", "Destination":"${InternetGateway}","RouteTag":"WebToInternet"},
+      {"Source":"${InternetGateway}", "Destination":"${DBServerInstance}","RouteTag":"InternetToDB"},
+      {"Source":"${InternetGateway}", "Destination":"${AppServerInstance}","RouteTag":"InternetToApp"},
+      {"Source":"${InternetGateway}", "Destination":"${WebServerInstance}","RouteTag":"InternetToWeb"}
+      ]
