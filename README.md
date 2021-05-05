@@ -6,6 +6,8 @@ For infrastructure deployed via AWS Console, SDK or CLI, the tester can be run p
 
 For infrastructure is deployed via a CI/CD pipeline, the tester can be integrated into the testing phase of the pipeline prior to deploying to production.
 
+![High Level Architecture Diagram](diagram.png)
+
 The tester will execute the networking testing by running a step function that carries out the following steps:
 
 - Identify the routes to be tested by retrieving the JSON formatted output from the stack output
@@ -26,9 +28,11 @@ To get started with the IaC Network tester, use the SAM CLI. SAM CLI provides a 
 
 - [Install SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
 
-## Set Up
+## Using the IaC Network Tester
 
-### Step 1
+There are 2 ways to run the tester. You can run it maually against a specific CloudFormation template. The steps below guide you through this process.
+
+### Step 1.1
 
 Deploy the IaC Network Tester application on your AWS account:
 
@@ -41,7 +45,7 @@ While running the `sam deploy -—guided` command, specify the `<stack name>` fo
 
 Note the Amazon Resource Name (ARN) of the IaC Network Tester state machine returned as the value with the key `IaCNetworkTesterStateMachineArn`.
 
-### Step 2
+### Step 1.2
 
 Ensure the format of the output of your CloudFormation template:
 
@@ -66,7 +70,7 @@ Outputs:
       ]
 ```
 
-### Step 3
+### Step 1.3
 
 Run the IaC Network Tester state machine by starting a new execution using the command below. The `<state_machine_arn>` parameter is the value from Step 1 above. The input to the state machine consists of:
 
@@ -91,6 +95,56 @@ aws stepfunctions describe-execution \
 The output is a JSON formatted string that shows the tests that succeeded, are running (if the analysis did not complete within the configured time) or failed. For each route tested, the result provide the route identification from the cloudformation template which includes: `Source`, `Destination` and `RouteTag`.
 
 The other set of details: `NetworkInsightsPathId`, `NetworkInsightsAnalysisId`, `NetworkPathFound` and `Explanations` are details from the VPC Reachability Analysis of each route. `NetworkPathFound` indicates if the route is reachable and if not the `Explanations` field provides details of why the route is not reachable.
+
+## Integrating the IaC Infrastructure Tester with a CI/CD Pipeline
+
+You can, alternatively, integrate the tool in your pipeline. The steps below configure an example pipeline on AWS Code Pipeline that use an S3 source as a trigger.
+
+### Step 2.1
+
+Deploy the IaC Network Tester application on your AWS account. Follow the instruction in Step 1 of the section above to deploy the IaC Network Tester application on your AWS account.
+
+### Step 2.2
+
+You can deploy the CloudFormation template for the sample CI/CD pipeline. The sample pipeline templates is located in the folder `sample_resources` within the repository. The `sample-pipeline.yml` will deploy a CI/CD pipeline using AWS CodePipeline which will be used as the pipeline to deploy the sample infrastructure defined in `sample-stack.yml`. The key addition to the CI/CD pipeline is a phase that executes network testing post deployment of the infrastructure in a test environment.
+
+Create the sample pipeline by deploying the CloudFormation template using the following example commands below, replacing:
+
+- `<myEmailAdd>` - used for pipeline SNS notification messages
+- `<IaCNetworkStateMachineArn>` - referencing the IaC Network Tester ARN
+- `<routeToTestOutputKey>` - a reference to the key holding the JSON output of the CloudFormation template being tested, p.e., NetworkReachabilityTestPaths
+- `<analysisDuration>` - timeout setting
+- `<analysisWaitCount>` - used for the wait between poling for the analysis result.
+
+```bash
+cd sample_resources
+aws cloudformation create-stack --stack-name iac-network-tester-sample-pipeline \
+--template-body file:///$PWD/sample-pipeline.yml \
+--parameters ParameterKey=Email,ParameterValue=<myEmailAdd> \
+ParameterKey=IaCNetworkTesterStateMachineArn,ParameterValue=<IaCNetworkStateMachineArn> \
+ParameterKey=IaCNetworkTesterRouteToTestOuputKey,ParameterValue=<routeToTestOutputKey> \
+ParameterKey=IaCNetworkTesterAnalysisDuration,ParameterValue=<analysisDuration> \
+ParameterKey=IaCNetworkTesterAnalysisWaitCount,ParameterValue=<analysisWaitCount> \
+--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
+```
+
+### Step 2.3
+
+Trigger the pipeline which will invoke the IaC Network Tester state machine during the network testing stage.
+
+## Clean Up
+
+Leaving resources that you don’t need running on your AWS account will incur changes. Follow the instructions below to clean up the resources created in this post and avoid incurring further charges.
+
+- Delete the CodePipeline Artifact Store S3 Bucket (`iac-network-tester-sample-pip-artifactstorebucket-XXXXXXXXXXXXX`) and Source S3 Bucket (`<AccountID>-iac-nt-bucket`) via the console by emptying the bucket and then deleting the bucket.
+- Run the following CLI commands to delete the CloudFormation stacks. Ensure each command successfully deletes the resources before proceeding to the next
+
+```bash
+aws cloudformation delete-stack --stack-name iac-network-tester-sample-stack
+aws cloudformation delete-stack --stack-name Prod-IaCNetworkTesterEnv
+aws cloudformation delete-stack --stack-name iac-network-tester-sample-pipeline
+aws cloudformation delete-stack --stack-name iac-network-tester-app
+```
 
 ## Security
 
