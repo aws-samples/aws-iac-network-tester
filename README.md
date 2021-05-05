@@ -6,7 +6,9 @@ For infrastructure deployed via AWS Console, SDK or CLI, the tester can be run p
 
 For infrastructure is deployed via a CI/CD pipeline, the tester can be integrated into the testing phase of the pipeline prior to deploying to production.
 
-![High Level Architecture Diagram](diagram.png)
+<p align="center">
+  <img src="images/hl_architecture.png" alt="High Level Architecture Diagram"/>
+</p>
 
 The tester will execute the networking testing by running a step function that carries out the following steps:
 

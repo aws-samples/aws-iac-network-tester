@@ -1,0 +1,278 @@
+---
+Description: Deploys 3 VPCs, 1 ActiveDirectory VPC and peering connection to specific subnets within the other 2 VPCs. When testing ReachabilityAnalyzer, this provides both a path found and path not found scenario.
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  LatestAmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+
+Resources:
+  # VPCs
+  ActiveDirectoryVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 172.16.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+
+  RemoteDesktopVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+
+  BusinessAppVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 192.168.0.0/20
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+
+  # Subnets
+  ActiveDirectoryVPCSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ActiveDirectoryVPC
+      CidrBlock: 172.16.0.0/24
+
+  RemoteDesktopVPCSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref RemoteDesktopVPC
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+
+  BusinessAppVPCSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref BusinessAppVPC
+      CidrBlock: 192.168.14.0/24
+      MapPublicIpOnLaunch: true
+
+  # VPC Peering Connection
+  ActiveDirectoryVPCToRemoteDesktopVPC:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref ActiveDirectoryVPC
+      PeerVpcId: !Ref RemoteDesktopVPC
+
+  ActiveDirectoryVPCToBusinessAppVPC:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref ActiveDirectoryVPC
+      PeerVpcId: !Ref BusinessAppVPC
+
+  # Internet Gateway
+  RemoteDesktopVPCIG:
+    Type: AWS::EC2::InternetGateway
+
+  BusinessAppVPCIG:
+    Type: AWS::EC2::InternetGateway
+
+  # Internet Gateway Attachment
+  RemoteDesktopIGAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: RemoteDesktopVPC
+      InternetGatewayId:
+        Ref: RemoteDesktopVPCIG
+
+  BusinessAppVPCIGAttach:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: BusinessAppVPC
+      InternetGatewayId:
+        Ref: BusinessAppVPCIG
+
+  # Routes
+  ActiveDirectoryVPCSubnetToRemoteDesktopVPCSubnet:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 10.0.0.0/24
+      VpcPeeringConnectionId:
+        Ref: ActiveDirectoryVPCToRemoteDesktopVPC
+      RouteTableId:
+        Ref: ActiveDirectoryVPCSubnetARouteTable
+
+  ActiveDirectoryVPCSubnetToBusinessAppVPCSubnet:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 192.168.14.0/24
+      VpcPeeringConnectionId:
+        Ref: ActiveDirectoryVPCToBusinessAppVPC
+      RouteTableId:
+        Ref: ActiveDirectoryVPCSubnetARouteTable
+
+  RemoteDesktopVPCSubnetToActiveDirectoryVPCSubnet:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 172.16.0.0/24
+      VpcPeeringConnectionId:
+        Ref: ActiveDirectoryVPCToRemoteDesktopVPC
+      RouteTableId:
+        Ref: RemoteDesktopVPCSubnetRouteTable
+
+  BusinessAppVPCSubnetToActiveDirectoryVPCSubnet:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 172.16.0.0/24
+      VpcPeeringConnectionId:
+        Ref: ActiveDirectoryVPCToBusinessAppVPC
+      RouteTableId:
+        Ref: BusinessAppVPCSubnetRouteTable
+
+  RemoteDesktopRouteToInternetGateway:
+    DependsOn: RemoteDesktopIGAttach
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: RemoteDesktopVPCIG
+      RouteTableId:
+        Ref: RemoteDesktopVPCSubnetRouteTable
+
+  BusinessAppRouteToInternetGateway:
+    DependsOn: BusinessAppVPCIGAttach
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: BusinessAppVPCIG
+      RouteTableId:
+        Ref: BusinessAppVPCSubnetRouteTable
+
+  # Route Tables
+  ActiveDirectoryVPCSubnetARouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: ActiveDirectoryVPC
+
+  RemoteDesktopVPCSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: RemoteDesktopVPC
+
+  BusinessAppVPCSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: BusinessAppVPC
+
+  # Route Table Subnet Association
+  ActiveDirectorySubnetRTAss:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref ActiveDirectoryVPCSubnetARouteTable
+      SubnetId: !Ref ActiveDirectoryVPCSubnet
+
+  RemoteDesktopSubnetRTAss:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref RemoteDesktopVPCSubnetRouteTable
+      SubnetId: !Ref RemoteDesktopVPCSubnet
+
+  BusinessAppSubnetRTAss:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref BusinessAppVPCSubnetRouteTable
+      SubnetId: !Ref BusinessAppVPCSubnet
+
+  # Security Groups
+  ActiveDirectoryServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http(s) and egress traffic
+      VpcId: !Ref ActiveDirectoryVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: 10.0.0.0/24
+        - IpProtocol: tcp
+          FromPort: 53
+          ToPort: 53
+          CidrIp: 192.168.14.0/24
+
+  RemoteDesktopServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http(s) and egress traffic
+      VpcId: !Ref RemoteDesktopVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3389
+          ToPort: 3389
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - CidrIp: 172.16.0.0/16
+          FromPort: 53
+          ToPort: 53
+          IpProtocol: tcp
+
+  BusinessAppServerSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http(s) and egress traffic
+      VpcId: !Ref BusinessAppVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - CidrIp: 172.16.0.0/16
+          FromPort: 53
+          ToPort: 53
+          IpProtocol: tcp
+
+  # Instances
+  ActiveDirectoryInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t2.micro
+      SubnetId:
+        Ref: ActiveDirectoryVPCSubnet
+      SecurityGroupIds:
+        - Ref: ActiveDirectoryServerSG
+
+  RemoteDesktopInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t2.micro
+      SubnetId:
+        Ref: RemoteDesktopVPCSubnet
+      SecurityGroupIds:
+        - Ref: RemoteDesktopServerSG
+
+  BusinessAppInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref LatestAmiId
+      InstanceType: t2.micro
+      SubnetId:
+        Ref: BusinessAppVPCSubnet
+      SecurityGroupIds:
+        - Ref: BusinessAppServerSG
+
+# Output VPC Reachability Analyzer Tests
+Outputs:
+  NetworkReachabilityTestPaths:
+    Value: !Sub |
+      [
+      {"Source":"${RemoteDesktopInstance}", "Destination":"${ActiveDirectoryInstance}","RouteTag":"RemoteDesktopToActiveDirectory"},
+      {"Source":"${BusinessAppInstance}", "Destination":"${ActiveDirectoryInstance}","RouteTag":"BusinessAppToActiveDirectory"},
+      {"Source":"${RemoteDesktopInstance}", "Destination":"${RemoteDesktopVPCIG}","RouteTag":"RemoteDesktopToInternet"},
+      {"Source":"${BusinessAppInstance}", "Destination":"${RemoteDesktopVPCIG}","RouteTag":"BusinessAppToInternet"},
+      {"Source":"${BusinessAppInstance}", "Destination":"${RemoteDesktopInstance}","RouteTag":"BusinessAppToRemoteDesktop"}
+      ]
