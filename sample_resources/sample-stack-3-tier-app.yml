@@ -2,11 +2,10 @@
 Description: An AWS VPC configuration with 1 subnet, 2 security groups and 3 instances. When testing ReachabilityAnalyzer, this provides both a path found and path not found scenario.
 AWSTemplateFormatVersion: 2010-09-09
 
-Mappings:
-  RegionMap:
-    us-east-1:
-      execution: ami-0915e09cc7ceee3ab
-      ecs: ami-08087103f9850bddd
+Parameters:
+  LatestAmiId:
+    Type: "AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>"
+    Default: "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
 
 Resources:
   # VPC
@@ -186,11 +185,7 @@ Resources:
     DependsOn: GatewayToInternet
     Type: AWS::EC2::Instance
     Properties:
-      ImageId:
-        Fn::FindInMap:
-          - RegionMap
-          - Ref: AWS::Region
-          - execution
+      ImageId: !Ref LatestAmiId
       InstanceType: "t3.nano"
       SubnetId:
         Ref: WebServerSubnet
@@ -200,11 +195,7 @@ Resources:
   AppServerInstance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId:
-        Fn::FindInMap:
-          - RegionMap
-          - Ref: AWS::Region
-          - execution
+      ImageId: !Ref LatestAmiId
       InstanceType: "t3.nano"
       SubnetId:
         Ref: AppServerSubnet
@@ -215,10 +206,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       ImageId:
-        Fn::FindInMap:
-          - RegionMap
-          - Ref: AWS::Region
-          - execution
+        ImageId: !Ref LatestAmiId
       InstanceType: "t3.nano"
       SubnetId:
         Ref: DBServerSubnet

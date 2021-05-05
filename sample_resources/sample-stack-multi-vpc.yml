@@ -272,7 +272,7 @@ Outputs:
       [
       {"Source":"${RemoteDesktopInstance}", "Destination":"${ActiveDirectoryInstance}","RouteTag":"RemoteDesktopToActiveDirectory"},
       {"Source":"${BusinessAppInstance}", "Destination":"${ActiveDirectoryInstance}","RouteTag":"BusinessAppToActiveDirectory"},
-      {"Source":"${RemoteDesktopInstance}", "Destination":"${RemoteDesktopVPCIG}","RouteTag":"RemoteDesktopToInternet"},
-      {"Source":"${BusinessAppInstance}", "Destination":"${RemoteDesktopVPCIG}","RouteTag":"BusinessAppToInternet"},
+      {"Source":"${RemoteDesktopVPCIG}", "Destination":"${RemoteDesktopInstance}","RouteTag":"InternetToRemoteDesktopApp"},
+      {"Source":"${BusinessAppVPCIG}", "Destination":"${BusinessAppInstance}","RouteTag":"InternetToBusinessApp"},
       {"Source":"${BusinessAppInstance}", "Destination":"${RemoteDesktopInstance}","RouteTag":"BusinessAppToRemoteDesktop"}
       ]
