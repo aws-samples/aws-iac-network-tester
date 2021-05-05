@@ -234,7 +234,7 @@ Resources:
           ToPort: 53
           IpProtocol: tcp
 
-  # Instances
+  # EC2 Instances
   ActiveDirectoryInstance:
     Type: AWS::EC2::Instance
     Properties:
