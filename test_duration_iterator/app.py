@@ -5,13 +5,13 @@ def lambda_handler(event, context):
     logging.info("event>>> " + str(event))
 
     numberOfTimesToWait = event['analysisWaitCount']
-    index = event['iterator']['index']
+    index = event['globalvars']['timerdetails']['testtimerindex']
     step = event['analysisDuration']
 
     totalWait = numberOfTimesToWait * step
     index += step
 
     return {
-        "index": index,
-        "continue": index < totalWait
+        "testtimerindex": index,
+        "continue": index < totalWait,
     }

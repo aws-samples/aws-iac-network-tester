@@ -201,6 +201,9 @@ Resources:
           FromPort: 53
           ToPort: 53
           CidrIp: 192.168.14.0/24
+      SecurityGroupEgress:
+        - CidrIp: 172.16.0.0/24
+          IpProtocol: "-1"
 
   RemoteDesktopServerSG:
     Type: AWS::EC2::SecurityGroup
@@ -272,7 +275,10 @@ Outputs:
       [
       {"Source":"${RemoteDesktopInstance}", "Destination":"${ActiveDirectoryInstance}","RouteTag":"RemoteDesktopToActiveDirectory"},
       {"Source":"${BusinessAppInstance}", "Destination":"${ActiveDirectoryInstance}","RouteTag":"BusinessAppToActiveDirectory"},
-      {"Source":"${RemoteDesktopVPCIG}", "Destination":"${RemoteDesktopInstance}","RouteTag":"InternetToRemoteDesktopApp"},
       {"Source":"${BusinessAppVPCIG}", "Destination":"${BusinessAppInstance}","RouteTag":"InternetToBusinessApp"},
-      {"Source":"${BusinessAppInstance}", "Destination":"${RemoteDesktopInstance}","RouteTag":"BusinessAppToRemoteDesktop"}
+      {"Source":"${BusinessAppInstance}", "Destination":"${RemoteDesktopInstance}","RouteTag":"BusinessAppToRemoteDesktop"},
+      {"Source":"${ActiveDirectoryInstance}", "Destination":"${BusinessAppInstance}","RouteTag":"ActiveDirectoryToBusinessApp"},
+      {"Source":"${ActiveDirectoryInstance}", "Destination":"${RemoteDesktopInstance}","RouteTag":"ActiveDirectoryToRemoteDesktopApp"},
+      {"Source":"${RemoteDesktopInstance}", "Destination":"${RemoteDesktopVPCIG}","RouteTag":"RemoteDesktopToInternet"},
+      {"Source":"${RemoteDesktopVPCIG}", "Destination":"${RemoteDesktopInstance}","RouteTag":"InternetToRemoteDesktopApp"}
       ]

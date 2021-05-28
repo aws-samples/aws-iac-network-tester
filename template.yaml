@@ -3,6 +3,19 @@ Transform: AWS::Serverless-2016-10-31
 Description: >
   IaC Network Tester Application
 
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: aws-iac-network-tester
+    Description: AWS IaC Network Tester is an opensource tool that can help you test the network reachability of resources deployed via Infrastructure as Code. It can be used for infrastructure deployed directly via AWS Console, CLI or SDK or via a Continuous Integration and Continuous Deployment pipeline. It will be deployed on your AWS Account and is powered by Step Functions that identify the routes to test and check for network reachability using the VPC Rechability Analyzer.
+    Author: Ozioma Uzoegwu
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    ReadmeUrl: README.md
+    Labels: ["IaC", "Network Tester", "VPC Rechability Analyzer"]
+    HomePageUrl: https://github.com/aws-samples/aws-iac-network-tester
+    SemanticVersion: 0.0.1
+    SourceCodeUrl: https://github.com/aws-samples/aws-iac-network-tester
+
 Globals:
   Function:
     Timeout: 300

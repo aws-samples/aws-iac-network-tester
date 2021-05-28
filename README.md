@@ -40,7 +40,7 @@ Deploy the IaC Network Tester application on your AWS account:
 
 ```bash
 sam build
-sam deploy –guided
+sam deploy --guided
 ```
 
 While running the `sam deploy -—guided` command, specify the `<stack name>` for example `iac-network-tester-app` and for other prompts, select the default by pressing `Enter`.

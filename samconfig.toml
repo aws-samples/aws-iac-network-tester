@@ -1,0 +1,9 @@
+version = 0.1
+[default]
+[default.deploy]
+[default.deploy.parameters]
+stack_name = "iac-network-tester"
+s3_bucket = "aws-sam-cli-managed-default-samclisourcebucket-z47vr6vdnys2"
+s3_prefix = "iac-network-tester"
+region = "eu-central-1"
+capabilities = "CAPABILITY_IAM"

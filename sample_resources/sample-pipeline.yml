@@ -17,15 +17,15 @@ Parameters:
     Description: The file name of the source artifact, such as myfolder/myartifact.zip
     Type: String
   TemplateFileName:
-    Default: sample-stack.yml
+    Default: sample-stack-multi-vpc.yml
     Description: The file name of the network deployment
     Type: String
   TestStackName:
-    Default: Test-IaCNetworkTesterEnv
+    Default: Test-IaCNetworkTesterSampleInfra
     Description: A name for the test env
     Type: String
   ProdStackName:
-    Default: Prod-IaCNetworkTesterEnv
+    Default: Prod-IaCNetworkTesterSampleInfra
     Description: A name for the production env
     Type: String
   ChangeSetName:
@@ -246,6 +246,7 @@ Resources:
             Statement:
               - Action:
                   - "ec2:*"
+                  - "ssm:*"
                 Effect: Allow
                 Resource: "*"
 

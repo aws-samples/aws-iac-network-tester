@@ -6,14 +6,15 @@ ec2Client = boto3.client('ec2')
 
 
 def lambda_handler(event, context):
-    inflight_network_test_details = event['pathdetails']
+    inflight_network_test_details = event['globalvars']['routedetails']['inflightroutetotest']['inflightroutes']
 
-    logging.info("inflight network tests >> " + str(inflight_network_test_details))
+    logging.info("inflight network tests >> " +
+                 str(inflight_network_test_details))
 
-    successful_tests = []
-    running_tests = []
-    failed_tests = []
+    updated_next_route_to_test = []
+    runningtestscount = 0
 
+    # Populating Test Results
     if inflight_network_test_details:
         for test_detail in inflight_network_test_details:
             logging.info("test detail >> " + str(test_detail))
@@ -24,32 +25,33 @@ def lambda_handler(event, context):
                     NetworkInsightsPathId=test_detail['NetworkInsightsPathId']
                 )
             except botocore.exceptions.ClientError as error:
-                logging.error("Call to describe_network_insights_analyses failed")
+                logging.error(
+                    "Call to describe_network_insights_analyses failed")
                 raise error
 
             test_status = response['NetworkInsightsAnalyses'][0]['Status']
 
+            updated_route_details = {
+                'Source': test_detail['Source'],
+                'Destination': test_detail['Destination'],
+                'RouteTag': test_detail['RouteTag'],
+                'NetworkInsightsPathId': test_detail['NetworkInsightsPathId'],
+                'NetworkInsightsAnalysisId': test_detail['NetworkInsightsAnalysisId'],
+                'Status': test_status
+            }
+
             if (test_status == 'succeeded'):
-                test_detail['NetworkPathFound'] = response['NetworkInsightsAnalyses'][0]['NetworkPathFound']
-                if not test_detail['NetworkPathFound']:
-                    test_detail['Explanations'] = response['NetworkInsightsAnalyses'][0]['Explanations']
-                successful_tests.append(test_detail)
-            elif (test_status == 'running'):
-                running_tests.append(test_detail)
-            else:
-                failed_tests.append(test_detail)
+                updated_route_details['NetworkPathFound'] = response['NetworkInsightsAnalyses'][0]['NetworkPathFound']
+                if not updated_route_details['NetworkPathFound']:
+                    updated_route_details['Explanations'] = response['NetworkInsightsAnalyses'][0]['Explanations']
+
+            if(test_status == 'running'):
+                runningtestscount += 1
+
+            updated_next_route_to_test.append(updated_route_details)
 
         return {
-            "succeeded": {
-                "testdetail": successful_tests,
-                "count": len(successful_tests)
-            },
-            "running": {
-                "testdetail": running_tests,
-                "count": len(running_tests)
-            },
-            "failed": {
-                "testdetail": failed_tests,
-                "count": len(failed_tests)
-            },
+            "inflightroutes": updated_next_route_to_test,
+            "runningtestscount": runningtestscount
+
         }

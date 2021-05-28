@@ -5,20 +5,27 @@
       "InitializeTest": {
         "Type": "Pass",
         "Result": {
-          "index": 0
+          "timerdetails":{
+            "testtimerindex": 0
+          },
+          "routedetails":{
+            "currentrouteindex": 0,
+            "testbatchsize": 5,
+            "isallroutestested": false
+          }
         },
-        "ResultPath": "$.iterator",
+        "ResultPath": "$.globalvars",
         "Next": "RetrievePathToTest"
       },
       "RetrievePathToTest": {
         "Type": "Task",
         "Resource": "${RetrievePathToTestFunctionArn}",
-        "ResultPath": "$.pathdetails",
+        "ResultPath": "$.globalvars.routedetails",
         "Next": "StartAllNetworkTestState"
       },
       "StartAllNetworkTestState": {
         "Type": "Map",
-        "ItemsPath": "$.pathdetails",
+        "ItemsPath": "$.globalvars.routedetails.inflightroutetotest.inflightroutes",
         "MaxConcurrency": 0,
         "Iterator":{
           "StartAt": "StartNetworkTest",
@@ -30,7 +37,7 @@
             }
           }
         },
-        "ResultPath": "$.pathdetails",
+        "ResultPath": "$.globalvars.routedetails.inflightroutetotest.inflightroutes",
         "Next": "WaitForTestToRun"
       },
       "WaitForTestToRun": {
@@ -41,14 +48,14 @@
       "CheckTestStatus": {
         "Type": "Task",
         "Resource": "${CheckNetworkTestStatusFunctionArn}",
-        "ResultPath": "$.testresult",
+        "ResultPath": "$.globalvars.routedetails.inflightroutetotest",
         "Next": "IsTestCompleted"
       },
       "IsTestCompleted": {
         "Type": "Choice",
         "Choices": [
           {
-            "Variable": "$.testresult.running.count",
+            "Variable": "$.globalvars.routedetails.inflightroutetotest.runningtestscount",
             "NumericGreaterThan": 0,
             "Next": "IncrementTestTimer"
           }
@@ -58,14 +65,14 @@
       "IncrementTestTimer": {
         "Type": "Task",
         "Resource": "${TestDurationIteratorFunctionArn}",
-        "ResultPath": "$.iterator",
+        "ResultPath": "$.globalvars.timerdetails",
         "Next": "IsTestDurationReached"
       },
       "IsTestDurationReached": {
         "Type": "Choice",
         "Choices": [
           {
-            "Variable": "$.iterator.continue",
+            "Variable": "$.globalvars.timerdetails.continue",
             "BooleanEquals": true,
             "Next": "WaitForTestToRun"
           }
@@ -75,12 +82,23 @@
       "CleanUp":{
         "Type": "Task",
         "Resource": "${DeleteTestResourcesFunctionArn}",
-        "ResultPath": null,
-        "OutputPath": "$.testresult",
-        "Next": "Done"
+        "ResultPath": "$.testresult",
+        "Next": "IsAllRoutesTested"
+      },
+      "IsAllRoutesTested":{
+        "Type": "Choice",
+        "Choices":[
+          {
+            "Variable": "$.globalvars.routedetails.isallroutestested",
+            "BooleanEquals": false,
+            "Next": "RetrievePathToTest"
+          }
+        ],
+        "Default": "Done"
       },
       "Done": {
         "Type": "Pass",
+        "OutputPath": "$.testresult",
         "End": true
       }
     }
