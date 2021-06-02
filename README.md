@@ -14,11 +14,11 @@ For infrastructure is deployed via a CI/CD pipeline, the tester can be integrate
 
 The state machine is shown in the figure below. The high level logic implemented on the state machine to carry out the test include:
 
-- Identify the routes to be tested by retrieving the JSON formatted output from the stack output
-- Start the network test by invoking VPC Reachability Analyzer concurrently for the routes
-- Wait for the test to run and retrieve the test results
-- Clean up the VPC Reachability Analyzer resources used to carry out the test
-- Repeat the process from Step 2 if more than five routes are to be tested (the tool tests in batches of 5 due to the quota for concurrent analyses for VPC Reachability Analyzer)
+1. Identify the routes to be tested by retrieving the JSON formatted output from the stack output
+2. Start the network test by invoking VPC Reachability Analyzer concurrently for the routes
+3. Wait for the test to run and retrieve the test results
+4. Clean up the VPC Reachability Analyzer resources used to carry out the test
+5. Repeat the process from Step 2 if more than five routes are to be tested (the tool tests in batches of 5 due to the quota for concurrent analyses for VPC Reachability Analyzer)
 
 <p align="center">
   <img src="images/IaCStateMachine.png" alt="IaC Network Tester State Machine"/>
