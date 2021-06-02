@@ -268,7 +268,7 @@ Resources:
       SecurityGroupIds:
         - Ref: BusinessAppServerSG
 
-# Output VPC Reachability Analyzer Tests
+# Routes for VPC Reachability Analyzer Tests
 Outputs:
   NetworkReachabilityTestPaths:
     Value: !Sub |
