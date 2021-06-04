@@ -7,7 +7,7 @@ For infrastructure deployed via AWS Console, SDK or CLI, the tester can be run p
 For infrastructure is deployed via a CI/CD pipeline, the tester can be integrated into the testing phase of the pipeline prior to deploying to production.
 
 <p align="center">
-  <img src="images/hl_architecture.png" alt="High Level Architecture Diagram"/>
+  <img src="images/Fig10v2.png" alt="High Level Architecture Diagram"/>
 </p>
 
 ## What does the state machine look like?
