@@ -64,7 +64,7 @@ Outputs:
       ]
 ```
 
-For a detailed walkthrough of how the tool can be used on a sample template, refer to this [blog post](https://aws.amazon.com/blogs/aws/)
+For a detailed walkthrough of how the tool can be used on a sample template, refer to this [blog post](https://aws.amazon.com/blogs/networking-and-content-delivery/integrating-network-connectivity-testing-with-infrastructure-deployment/)
 
 ## How to execute the state machine
 
